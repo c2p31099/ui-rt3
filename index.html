@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>4択RT計測デモ</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 24px; line-height: 1.6; }
+    .card { max-width: 720px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 12px; }
+    .ui { height: 240px; border-radius: 12px; display:flex; align-items:center; justify-content:center; margin: 12px 0 18px; }
+    .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { padding: 14px 12px; font-size: 16px; border-radius: 10px; border: 1px solid #bbb; background: #fff; }
+    button:active { transform: scale(0.99); }
+    .result { margin-top: 18px; padding: 12px; background: #f7f7f7; border-radius: 10px; }
+    .small { color: #555; font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="margin-top:0;">読解問題（デモ）</h1>
+
+    <!-- ここを「あなたのUI画像」に置き換えるなら、imgタグにする -->
+    <div id="ui" class="ui" style="background:#C2C9CC; color:#555859;">
+      <div style="padding:14px; text-align:left; max-width: 620px;">
+        <div>（ここにUI画像／文章を置く）</div>
+        <div class="small">例：Aさんは月曜日か火曜日のどちらかに英語を勉強した…</div>
+      </div>
+    </div>
+
+    <div><b>Q.</b> 正しい選択肢を選んでください。</div>
+
+    <div class="choices" style="margin-top:12px;">
+      <button data-ans="A">A</button>
+      <button data-ans="B">B</button>
+      <button data-ans="C">C</button>
+      <button data-ans="D">D</button>
+    </div>
+
+    <div id="result" class="result" style="display:none;"></div>
+    <div class="small" style="margin-top:10px;">
+      ※開始時刻＝ページ表示時点。反応時間は端末やタブ切替の影響を受けます。
+    </div>
+  </div>
+
+  <script>
+    // 開始時刻を「URLに入った瞬間（ページ表示）」として記録
+    // リロードで初期化されないように sessionStorage に保存
+    const START_KEY = "rt_start_ms";
+    if (!sessionStorage.getItem(START_KEY)) {
+      sessionStorage.setItem(START_KEY, String(performance.now()));
+    }
+
+    // すでにURLに結果が入っている場合は表示（共有URLを開いたとき等）
+    function showFromUrlIfAny() {
+      const params = new URLSearchParams(location.search);
+      const ans = params.get("ans");
+      const rt = params.get("rt");
+      if (ans && rt) {
+        const resultDiv = document.getElementById("result");
+        resultDiv.style.display = "block";
+        resultDiv.innerHTML = `
+          <div><b>回答：</b>${escapeHtml(ans)}</div>
+          <div><b>回答時間：</b>${escapeHtml(rt)} ms</div>
+          <div class="small">（この結果はURLのクエリから復元しています）</div>
+          <div class="small mono">URL: ${escapeHtml(location.href)}</div>
+        `;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    // ボタンを押したら反応時間を計算し、URLに埋め込み、結果表示
+    document.querySelectorAll("button[data-ans]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ans = btn.dataset.ans;
+        const start = Number(sessionStorage.getItem(START_KEY));
+        const rt = Math.round(performance.now() - start); // ms
+
+        // URLに結果を入れる（共有しやすい）
+        const params = new URLSearchParams(location.search);
+        params.set("ans", ans);
+        params.set("rt", String(rt));
+        history.replaceState(null, "", `${location.pathname}?${params.toString()}`);
+
+        // 結果表示
+        const resultDiv = document.getElementById("result");
+        resultDiv.style.display = "block";
+        resultDiv.innerHTML = `
+          <div><b>回答：</b>${escapeHtml(ans)}</div>
+          <div><b>回答時間：</b>${rt} ms</div>
+        `;
+
+        // 連打防止（任意）
+        document.querySelectorAll("button[data-ans]").forEach(b => b.disabled = true);
+      });
+    });
+
+    showFromUrlIfAny();
+  </script>
+</body>
+</html>

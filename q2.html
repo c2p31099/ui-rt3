@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>4択RT計測（2）</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 24px; line-height: 1.6; }
+    .card { max-width: 720px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 12px; }
+    .ui { height: 240px; border-radius: 12px; display:flex; align-items:center; justify-content:center; margin: 12px 0 18px; }
+    .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { padding: 14px 12px; font-size: 16px; border-radius: 10px; border: 1px solid #bbb; background: #fff; }
+    button:active { transform: scale(0.99); }
+    .result { margin-top: 18px; padding: 12px; background: #f7f7f7; border-radius: 10px; }
+    .small { color: #555; font-size: 13px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; }
+
+    /* === ボタンの色指定(上書き) === */
+    button { background-color: #C2C9CC; color: #222222; }
+
+    /* 暗い文字条件 ナチュラル */
+    body.dark-text button { background-color: #3F6A2A; color: #E4F2B6; }
+
+    /* 明るい文字条件 ナチュラル */
+    body.light-text button { background-color: #006464 ; color: #FF9191; }
+
+    /* ==== PC想定の上書き ==== */
+    .ui{
+      height: min(56vh, 520px);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+    .ui-img{
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+
+<!-- ✅ bodyは1つだけ。Q2は light-text -->
+<body class="light-text">
+
+  <div class="card">
+
+    <div class="ui">
+      <img src="cond2.png" alt="UI画像" class="ui-img">
+    </div>
+
+    <div><b>Q.</b> 正しい選択肢を選んでください。</div>
+
+    <div class="choices" style="margin-top:12px;">
+      <button type="button" data-ans="月曜日">月曜日</button>
+      <button type="button" data-ans="火曜日">火曜日</button>
+      <button type="button" data-ans="水曜日">水曜日</button>
+      <button type="button" data-ans="金曜日">金曜日</button>
+    </div>
+
+    <div id="result" class="result" style="display:none;"></div>
+
+    <div class="small" style="margin-top:10px;">
+      ※開始時刻＝ページ表示時点。反応時間は端末やタブ切替の影響を受けます。
+    </div>
+
+  </div><!-- /card -->
+
+  <script>
+    // ✅ Q2の正解（あなたの問題②は「火曜日（正解）」でした）
+    const CORRECT_ANS = "月曜日";
+
+    const START_KEY = "rt_start_ms";
+    if (!sessionStorage.getItem(START_KEY)) {
+      sessionStorage.setItem(START_KEY, String(performance.now()));
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    function showResult(ans, rt, judgeText) {
+      const resultDiv = document.getElementById("result");
+      resultDiv.style.display = "block";
+      resultDiv.innerHTML = `
+        <div><b>回答：</b>${escapeHtml(ans)}</div>
+        <div><b>判定：</b>${escapeHtml(judgeText)}</div>
+        <div><b>回答時間：</b>${escapeHtml(rt)} ms</div>
+      `;
+    }
+
+    function showFromUrlIfAny() {
+      const params = new URLSearchParams(location.search);
+      const ans = params.get("ans");
+      const rt = params.get("rt");
+      const judge = params.get("judge");
+      if (ans && rt) {
+        const judgeText = judge ? judge : ((ans === CORRECT_ANS) ? "正解" : "不正解");
+        showResult(ans, rt, judgeText);
+      }
+    }
+
+    document.querySelectorAll("button[data-ans]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ans = btn.dataset.ans;
+        const start = Number(sessionStorage.getItem(START_KEY));
+        const rt = Math.round(performance.now() - start);
+
+        const judgeText = (ans === CORRECT_ANS) ? "正解" : "不正解";
+
+        // URLにも入れる（フォーム入力時の確認に使える）
+        const params = new URLSearchParams(location.search);
+        params.set("ans", ans);
+        params.set("rt", String(rt));
+        params.set("judge", judgeText);
+        history.replaceState(null, "", `${location.pathname}?${params.toString()}`);
+
+        showResult(ans, String(rt), judgeText);
+
+        // 連打防止
+        document.querySelectorAll("button[data-ans]").forEach(b => b.disabled = true);
+      });
+    });
+
+    showFromUrlIfAny();
+  </script>
+</body>
+</html>
+
